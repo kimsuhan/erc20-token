@@ -1,8 +1,25 @@
-import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "hardhat-gas-reporter";
+import { HardhatUserConfig } from "hardhat/config";
+require("dotenv").config();
 
 const config: HardhatUserConfig = {
   solidity: "0.8.28",
+  networks: {
+    localhost: {
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
+    },
+  },
+  gasReporter: {
+    enabled: true,
+    currency: "KRW",
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
+    etherscan: process.env.ETHERSCAN_API_KEY,
+    showMethodSig: true, // 메서드 시그니처 표시
+    // outputFile: "gas-report.txt", // 결과 파일 저장
+    showUncalledMethods: true, // 호출 안된 메서드도 표시
+  },
 };
 
 export default config;

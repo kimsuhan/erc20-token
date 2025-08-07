@@ -5,7 +5,10 @@
   "repository": "git@github.com:kimsuhan/erc20-token.git",
   "author": "suhankim <k_yakima@naver.com>",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
+    "dotenv": "^17.2.1"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
