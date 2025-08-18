@@ -1,55 +1,86 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
+import { Signer } from "ethers";
 import { ethers } from "hardhat";
+import { TokenDeployer } from "../typechain-types";
 
-async function deployTokenFixture() {
-  const initialSupply = 10000;
-  const [owner, addr1] = await ethers.getSigners();
-  const Token = await ethers.getContractFactory("Token");
-  const token = await Token.deploy("KSHToken", "KSH", initialSupply);
-  return { token, owner, initialSupply, addr1 };
+async function deployTokenDeployerFixture() {
+  const TokenDeployer = await ethers.getContractFactory("TokenDeployer");
+  const tokenDeployer = await TokenDeployer.deploy();
+  await tokenDeployer.waitForDeployment();
+
+  return { tokenDeployer };
 }
 
 describe("Token", () => {
-  it("should mint token", async () => {
-    const { token, owner, initialSupply, addr1 } = await loadFixture(
-      deployTokenFixture
-    );
+  let tokenDeployer: TokenDeployer;
+  let owner: Signer;
+  let other: Signer;
+  let ownerAddress: string;
+  let otherAddress: string;
 
-    const balance = await token.balanceOf(owner.address);
-    const totalSupply = await token.totalSupply();
+  before(async () => {
+    const fixture = await loadFixture(deployTokenDeployerFixture);
+    [owner, other] = await ethers.getSigners();
 
-    const transferAmount = ethers.parseEther("100");
-    const tx = await token.transfer(addr1.address, transferAmount);
-    const receipt = await tx.wait();
+    tokenDeployer = fixture.tokenDeployer;
+    owner = owner;
+    other = other;
+    ownerAddress = await owner.getAddress();
+    otherAddress = await other.getAddress();
+  });
 
-    describe("Token Contract", function () {
-      it("Address 1 should have 100 tokens", async () => {
-        const balance = await token.balanceOf(addr1.address);
-        expect(balance).to.equal(transferAmount);
-      });
+  it("첫번째 토큰 생성", async () => {
+    const tokenName = "KSHToken";
+    const tokenSymbol = "KSH";
 
-      it("Owner  should have 9900 tokens", async () => {
-        const balance = await token.balanceOf(owner.address);
-        const checkBalance = ethers.parseEther(
-          (initialSupply - 100).toString()
-        );
-        expect(balance).to.equal(checkBalance);
-      });
-    });
+    await expect(
+      tokenDeployer.deployToken(tokenName, tokenSymbol, 10000, ownerAddress)
+    )
+      .to.emit(tokenDeployer, "TokenDeployed")
+      .withArgs("KSHToken", "KSH", 10000, ownerAddress);
 
-    // console.log("Gas used:", receipt!.gasUsed.toString());
-    // console.log("Gas price (wei):", tx.gasPrice.toString());
-    // console.log(
-    //   "Total cost (wei):",
-    //   ethers.formatEther(receipt!.gasUsed * tx.gasPrice).toString()
-    // );
-    // console.log(
-    //   "Total cost (ETH):",
-    //   ethers.formatEther(receipt!.gasUsed * tx.gasPrice).toString()
-    // );
+    const tokenAddress = await tokenDeployer.tokenAddresses("KSH");
+    const token = await ethers.getContractAt("Token", tokenAddress);
+    const balance = await token.connect(owner).balanceOf(ownerAddress);
 
-    // expect(ethers.formatEther(balance)).to.equal(initialSupply.toString());
-    // expect(ethers.formatEther(totalSupply)).to.equal(initialSupply.toString());
+    expect(balance).to.equal(ethers.parseEther("10000"));
+  });
+
+  it("두번째 토큰 생성", async () => {
+    const tokenName = "LWHToken";
+    const tokenSymbol = "LWH";
+
+    await expect(
+      tokenDeployer.deployToken(tokenName, tokenSymbol, 10000, otherAddress)
+    )
+      .to.emit(tokenDeployer, "TokenDeployed")
+      .withArgs("LWHToken", "LWH", 10000, otherAddress);
+
+    const tokenAddress = await tokenDeployer.tokenAddresses("LWH");
+    const token = await ethers.getContractAt("Token", tokenAddress);
+    const balance = await token.connect(other).balanceOf(otherAddress);
+
+    expect(balance).to.equal(ethers.parseEther("10000"));
+  });
+
+  it("똑같은 심볼로 토큰 생성 시도", async () => {
+    const tokenName = "LWHToken";
+    const tokenSymbol = "LWH";
+
+    await expect(
+      tokenDeployer.deployToken(tokenName, tokenSymbol, 10000, ownerAddress)
+    ).to.be.revertedWith("Token already deployed");
+  });
+
+  it("owner 에서 other 주소로 토큰 전송", async () => {
+    const tokenAddress = await tokenDeployer.tokenAddresses("KSH");
+    const token = await ethers.getContractAt("Token", tokenAddress);
+    const balance = await token.connect(owner).balanceOf(ownerAddress);
+
+    await token.connect(owner).transfer(otherAddress, balance);
+
+    const balance2 = await token.connect(other).balanceOf(otherAddress);
+    expect(balance2).to.equal(balance);
   });
 });
