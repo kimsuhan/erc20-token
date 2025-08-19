@@ -17,14 +17,22 @@ contract TokenDeployer {
         address owner
     );
 
+    modifier alreadyDeployed(string memory symbol) {
+        require(tokenAddresses[symbol] == address(0), "Token already deployed");
+        _;
+    }
+
+    modifier authorized(string memory symbol) {
+        require(msg.sender == tokenAddresses[symbol], "Not authorized");
+        _;
+    }
+
     function deployToken(
         string memory name,
         string memory symbol,
         uint256 initialSupply,
         address owner
-    ) public returns (address token) {
-        require(tokenAddresses[symbol] == address(0), "Token already deployed");
-
+    ) public alreadyDeployed(symbol) returns (address token) {
         bytes memory bytecode = abi.encodePacked(
             type(Token).creationCode,
             abi.encode(name, symbol, initialSupply, owner)
